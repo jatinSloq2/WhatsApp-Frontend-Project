@@ -1,41 +1,41 @@
 // src/hooks/useSessions.ts
 
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  clearError,
+  createSession as createSessionAction,
+  deleteSession as deleteSessionAction,
+  fetchSessions,
+  logoutSession as logoutSessionAction,
+  setCurrentSession,
+  updateSession as updateSessionAction,
+  updateSessionInList,
+} from '@/store/slices/sessionSlice';
+import { CreateSessionData } from '@/types/session.types';
 import { useEffect } from 'react';
-import { useSessionStore } from '@/store/sessionStore';
-import { useSocket } from './useSocket';
-import { Session } from '@/types/session.types';
 import toast from 'react-hot-toast';
+import { useSocket } from './useSocket';
 
 export const useSessions = () => {
-  const {
-    sessions,
-    currentSession,
-    isLoading,
-    error,
-    fetchSessions,
-    createSession,
-    updateSession,
-    deleteSession,
-    logoutSession,
-    setCurrentSession,
-    updateSessionInList,
-    clearError,
-  } = useSessionStore();
-
+  const dispatch = useAppDispatch();
+  const { sessions, currentSession, isLoading, error } = useAppSelector((state) => state.session);
   const { on, off } = useSocket();
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    dispatch(fetchSessions());
+  }, [dispatch]);
 
   useEffect(() => {
     // Listen for session status updates
     const handleSessionStatus = (data: any) => {
-      updateSessionInList(data.sessionId, {
-        status: data.status,
-        connectedAt: data.connectedAt,
-        lastSeen: data.lastSeen,
-      });
+      dispatch(updateSessionInList({
+        sessionId: data.sessionId,
+        updates: {
+          status: data.status,
+          connectedAt: data.connectedAt,
+          lastSeen: data.lastSeen,
+        },
+      }));
 
       if (data.status === 'connected') {
         toast.success(`Session ${data.sessionId} connected!`);
@@ -49,19 +49,19 @@ export const useSessions = () => {
     return () => {
       off('session_status', handleSessionStatus);
     };
-  }, [on, off, updateSessionInList]);
+  }, [on, off, dispatch]);
 
   return {
     sessions,
     currentSession,
     isLoading,
     error,
-    fetchSessions,
-    createSession,
-    updateSession,
-    deleteSession,
-    logoutSession,
-    setCurrentSession,
-    clearError,
+    fetchSessions: () => dispatch(fetchSessions()),
+    createSession: (data: CreateSessionData) => dispatch(createSessionAction(data)),
+    updateSession: (sessionId: string, data: any) => dispatch(updateSessionAction({ sessionId, data })),
+    deleteSession: (sessionId: string) => dispatch(deleteSessionAction(sessionId)),
+    logoutSession: (sessionId: string) => dispatch(logoutSessionAction(sessionId)),
+    setCurrentSession: (session: any) => dispatch(setCurrentSession(session)),
+    clearError: () => dispatch(clearError()),
   };
 };

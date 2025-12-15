@@ -3,7 +3,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useAuthStore } from '@/store/authStore';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { loginUser } from '@/store/slices/authSlice';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +13,9 @@ import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const dispatch = useAppDispatch();
+  const { isLoading } = useAppSelector((state) => state.auth);
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     identifier: '',
@@ -41,11 +44,11 @@ export default function LoginPage() {
     if (!validate()) return;
 
     try {
-      await login(formData);
+      await dispatch(loginUser(formData)).unwrap();
       toast.success('Login successful!');
       router.push('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Login failed');
+      toast.error(error || 'Login failed');
     }
   };
 

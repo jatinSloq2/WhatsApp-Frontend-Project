@@ -5,17 +5,18 @@
 import { useEffect } from 'react';
 import { Users, MessageCircle, Send, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { useAuthStore } from '@/store/authStore';
-import { useSessionStore } from '@/store/sessionStore';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchSessions } from '@/store/slices/sessionSlice';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const { sessions, fetchSessions } = useSessionStore();
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const { sessions } = useAppSelector((state) => state.session);
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    dispatch(fetchSessions());
+  }, [dispatch]);
 
   const stats = [
     {

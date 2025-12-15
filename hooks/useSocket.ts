@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { socketClient } from '@/lib/socket';
-import { useAuthStore } from '@/store/authStore';
+import { useAppSelector } from '@/store/hooks';
 
 export const useSocket = () => {
-  const { accessToken } = useAuthStore();
+  const { accessToken } = useAppSelector((state) => state.auth);
   const isInitialized = useRef(false);
 
   useEffect(() => {

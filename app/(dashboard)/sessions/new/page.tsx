@@ -9,12 +9,15 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useSessionStore } from '@/store/sessionStore';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { createSession } from '@/store/slices/sessionSlice';
 import toast from 'react-hot-toast';
 
 export default function NewSessionPage() {
   const router = useRouter();
-  const { createSession, isLoading } = useSessionStore();
+  const dispatch = useAppDispatch();
+  const { isLoading } = useAppSelector((state) => state.session);
+  
   const [formData, setFormData] = useState({
     phoneNumber: '',
     sessionName: '',
@@ -44,11 +47,11 @@ export default function NewSessionPage() {
     if (!validate()) return;
 
     try {
-      const session = await createSession(formData);
+      const result = await dispatch(createSession(formData)).unwrap();
       toast.success('Session created successfully!');
-      router.push(`/sessions/${session.sessionId}`);
+      router.push(`/sessions/${result.sessionId}`);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create session');
+      toast.error(error || 'Failed to create session');
     }
   };
 

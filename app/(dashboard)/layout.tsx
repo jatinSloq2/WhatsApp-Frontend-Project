@@ -14,9 +14,9 @@ import {
   Bot,
   Settings,
   LogOut,
-  User,
 } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { logoutUser } from '@/store/slices/authSlice';
 import { cn, getInitials } from '@/lib/utils';
 
 const navigation = [
@@ -35,7 +35,8 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, user, logout, isLoading } = useAuthStore();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -44,7 +45,7 @@ export default function DashboardLayout({
   }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = async () => {
-    await logout();
+    await dispatch(logoutUser());
     router.push('/login');
   };
 

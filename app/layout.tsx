@@ -1,5 +1,6 @@
 // src/app/layout.tsx
 
+import { ReduxProvider } from '@/components/providers/ReduxProvider';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <ReduxProvider>
         {children}
+        </ReduxProvider>
         <Toaster
           position="top-right"
           toastOptions={{

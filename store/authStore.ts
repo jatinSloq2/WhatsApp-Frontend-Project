@@ -136,6 +136,7 @@ export const useAuthStore = create<AuthStore>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      skipHydration: typeof window === 'undefined',
     }
   )
 );

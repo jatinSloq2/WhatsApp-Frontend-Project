@@ -2,11 +2,11 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAppSelector } from '@/store/hooks';
 
 export const useAuth = (requireAuth: boolean = true) => {
   const router = useRouter();
-  const { isAuthenticated, user, isLoading } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (!isLoading) {

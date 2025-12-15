@@ -6,13 +6,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, User, Eye, EyeOff, Phone } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { registerUser } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isLoading } = useAuthStore();
+  const dispatch = useAppDispatch();
+  const { isLoading } = useAppSelector((state) => state.auth);
+  
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -70,17 +73,18 @@ export default function RegisterPage() {
     if (!validate()) return;
 
     try {
-      await register({
+      await dispatch(registerUser({
         email: formData.email,
         username: formData.username,
         fullName: formData.fullName,
         phone: formData.phone || undefined,
         password: formData.password,
-      });
+      })).unwrap();
+      
       toast.success('Registration successful! Please login.');
       router.push('/login');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Registration failed');
+      toast.error(error || 'Registration failed');
     }
   };
 
