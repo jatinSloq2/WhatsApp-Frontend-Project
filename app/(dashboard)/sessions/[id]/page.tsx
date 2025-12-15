@@ -6,14 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { useQRCode } from '@/hooks/useQRCode';
+import { useQRCode } from '@/hooks/useQrCode';
 import { useSocket } from '@/hooks/useSocket';
 import { formatDate } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 import { ArrowLeft, CheckCircle, Power, RefreshCw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -21,7 +21,7 @@ export default function SessionDetailPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.id as string;
-  
+
   const {
     currentSession,
     getSession,
@@ -32,6 +32,7 @@ export default function SessionDetailPage() {
   } = useSessionStore();
 
   const { qrCode, isLoading: qrLoading, refetch: refetchQR } = useQRCode(sessionId);
+  console.log('QR length:', qrCode?.length);
   const { on, off, subscribeToSession } = useSocket();
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -135,8 +136,8 @@ export default function SessionDetailPage() {
               currentSession.status === 'connected'
                 ? 'success'
                 : currentSession.status === 'qr_waiting'
-                ? 'warning'
-                : 'danger'
+                  ? 'warning'
+                  : 'danger'
             }
           >
             {currentSession.status.replace('_', ' ')}
@@ -152,7 +153,7 @@ export default function SessionDetailPage() {
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
                 Scan QR Code to Connect
               </h3>
-              
+
               {qrLoading || isConnecting ? (
                 <div className="flex flex-col items-center gap-4 py-12">
                   <Spinner size="lg" />
@@ -163,9 +164,13 @@ export default function SessionDetailPage() {
               ) : qrCode ? (
                 <div className="flex flex-col items-center gap-6">
                   <div className="rounded-lg border-4 border-gray-200 bg-white p-4">
-                    <QRCode value={qrCode} size={256} level="H" />
+                    <img
+                      src={qrCode}
+                      alt="Scan QR Code"
+                      className="h-64 w-64"
+                    />
                   </div>
-                  
+
                   <div className="max-w-md space-y-2 text-left">
                     <h4 className="font-medium text-gray-900">How to connect:</h4>
                     <ol className="list-inside list-decimal space-y-1 text-sm text-gray-600">
