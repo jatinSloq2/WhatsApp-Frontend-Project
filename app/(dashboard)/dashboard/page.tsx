@@ -7,6 +7,7 @@ import { Users, MessageCircle, Send, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { useSessionStore } from '@/store/sessionStore';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
