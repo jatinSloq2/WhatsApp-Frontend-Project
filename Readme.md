@@ -17,7 +17,6 @@ whatsapp-manager/
 │   ├── shared/              # Shared utilities
 │   ├── auth-service/        # Authentication service (Port 8001)
 │   ├── session-service/     # WhatsApp session service (Port 8002)
-│   └── api-gateway/         # API Gateway (Port 8000) - Optional
 ```
 
 ---

@@ -13,6 +13,12 @@ interface SessionStore {
   fetchSessions: () => Promise<void>;
   createSession: (data: CreateSessionData) => Promise<Session>;
   getSession: (sessionId: string) => Promise<void>;
+  getSessionStatus: (sessionId: string) => Promise<{
+    sessionId: string;
+    status: string;
+    connectedAt?: string;
+    lastSeen?: string;
+  } | null>;
   updateSession: (sessionId: string, data: Partial<Session>) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   logoutSession: (sessionId: string) => Promise<void>;
@@ -81,6 +87,42 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     }
   },
 
+  // New method: Get session status (lightweight, for polling)
+  getSessionStatus: async (sessionId) => {
+    try {
+      const response = await sessionService.getSessionStatus(sessionId);
+      const statusData = response.data;
+      
+      // Update the session in store with new status
+      set((state) => ({
+        sessions: state.sessions.map((s) =>
+          s.sessionId === sessionId 
+            ? { 
+                ...s, 
+                status: statusData.status as any,
+                connectedAt: statusData.connectedAt || s.connectedAt,
+                lastSeen: statusData.lastSeen || s.lastSeen,
+              } 
+            : s
+        ),
+        currentSession:
+          state.currentSession?.sessionId === sessionId
+            ? { 
+                ...state.currentSession, 
+                status: statusData.status as any,
+                connectedAt: statusData.connectedAt || state.currentSession.connectedAt,
+                lastSeen: statusData.lastSeen || state.currentSession.lastSeen,
+              }
+            : state.currentSession,
+      }));
+      
+      return statusData;
+    } catch (error: any) {
+      console.error('Failed to get session status:', error);
+      return null;
+    }
+  },
+
   updateSession: async (sessionId, data) => {
     set({ isLoading: true, error: null });
     try {
@@ -120,6 +162,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         error: error.response?.data?.message || 'Failed to delete session',
         isLoading: false,
       });
+      throw error;
     }
   },
 
@@ -140,6 +183,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         error: error.response?.data?.message || 'Failed to logout session',
         isLoading: false,
       });
+      throw error;
     }
   },
 

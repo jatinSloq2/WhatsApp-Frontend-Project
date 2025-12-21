@@ -31,39 +31,47 @@ export default function SessionsPage() {
       try {
         await logoutSession(sessionId);
         toast.success('Session logged out successfully');
-      } catch (error) {
+      } catch {
         toast.error('Failed to logout session');
       }
     }
   };
 
   const handleDelete = async (sessionId: string) => {
-    if (confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
+    if (
+      confirm(
+        'Are you sure you want to delete this session? This action cannot be undone.'
+      )
+    ) {
       try {
         await deleteSession(sessionId);
         toast.success('Session deleted successfully');
-      } catch (error) {
+      } catch {
         toast.error('Failed to delete session');
       }
     }
   };
 
   const getStatusBadge = (status: Session['status']) => {
-    const variants: Record<Session['status'], 'success' | 'warning' | 'danger' | 'info'> = {
-      connected: 'success',
-      qr_waiting: 'warning',
-      initializing: 'info',
-      disconnected: 'danger',
-      error: 'danger',
+    const styles: Record<Session['status'], string> = {
+      connected: 'bg-emerald-100 text-emerald-700',
+      qr_waiting: 'bg-yellow-100 text-yellow-700',
+      initializing: 'bg-blue-100 text-blue-700',
+      disconnected: 'bg-red-100 text-red-700',
+      error: 'bg-red-100 text-red-700',
     };
 
-    return <Badge variant={variants[status]}>{status.replace('_', ' ')}</Badge>;
+    return (
+      <Badge className={`capitalize ${styles[status]}`}>
+        {status.replace('_', ' ')}
+      </Badge>
+    );
   };
 
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-600 border-t-transparent" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       </div>
     );
   }
@@ -73,13 +81,15 @@ export default function SessionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">WhatsApp Sessions</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            WhatsApp Sessions
+          </h1>
           <p className="mt-1 text-sm text-gray-600">
             Manage your connected WhatsApp numbers
           </p>
         </div>
         <Link href="/sessions/new">
-          <Button className="gap-2">
+          <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
             <Plus className="h-5 w-5" />
             New Session
           </Button>
@@ -90,16 +100,23 @@ export default function SessionsPage() {
       {sessions.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sessions.map((session) => (
-            <Card key={session._id} className="flex flex-col">
+            <Card
+              key={session._id}
+              className="flex flex-col rounded-2xl p-5"
+            >
               {/* Session Header */}
               <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
-                    <Smartphone className="h-6 w-6 text-primary-600" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
+                    <Smartphone className="h-6 w-6 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{session.sessionName}</h3>
-                    <p className="text-sm text-gray-500">{session.phoneNumber}</p>
+                    <h3 className="font-semibold text-gray-900">
+                      {session.sessionName}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {session.phoneNumber}
+                    </p>
                   </div>
                 </div>
                 {getStatusBadge(session.status)}
@@ -113,6 +130,7 @@ export default function SessionsPage() {
                     {formatDate(session.createdAt)}
                   </span>
                 </div>
+
                 {session.connectedAt && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Connected:</span>
@@ -121,6 +139,7 @@ export default function SessionsPage() {
                     </span>
                   </div>
                 )}
+
                 {session.lastSeen && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Last Seen:</span>
@@ -133,27 +152,34 @@ export default function SessionsPage() {
 
               {/* Actions */}
               <div className="flex gap-2 border-t border-gray-200 pt-4">
-                <Link href={`/sessions/${session.sessionId}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full gap-2">
+                <Link
+                  href={`/sessions/${session.sessionId}`}
+                  className="flex-1"
+                >
+                  <Button
+                    size="sm"
+                    className="w-full gap-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  >
                     <Info className="h-4 w-4" />
                     Details
                   </Button>
                 </Link>
+
                 {session.status === 'connected' && (
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={() => handleLogout(session.sessionId)}
-                    className="gap-2"
+                    className="gap-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   >
                     <Power className="h-4 w-4" />
                     Logout
                   </Button>
                 )}
+
                 <Button
-                  variant="danger"
                   size="sm"
                   onClick={() => handleDelete(session.sessionId)}
+                  className="bg-red-600 text-white hover:bg-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -162,14 +188,16 @@ export default function SessionsPage() {
           ))}
         </div>
       ) : (
-        <Card className="flex flex-col items-center justify-center py-12">
+        <Card className="flex flex-col items-center justify-center rounded-2xl py-12">
           <Smartphone className="mb-4 h-16 w-16 text-gray-400" />
-          <h3 className="mb-2 text-lg font-semibold text-gray-900">No sessions yet</h3>
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+            No sessions yet
+          </h3>
           <p className="mb-6 text-sm text-gray-600">
             Create your first WhatsApp session to get started
           </p>
           <Link href="/sessions/new">
-            <Button className="gap-2">
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-5 w-5" />
               Create Session
             </Button>
