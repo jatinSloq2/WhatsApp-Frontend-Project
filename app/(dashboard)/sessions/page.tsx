@@ -4,38 +4,29 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Smartphone, Trash2, Power, Info } from 'lucide-react';
+import { Plus, Smartphone, Trash2, Info } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useSessions } from '@/hooks/useSessions';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { fetchSessions, deleteSession } from '@/store/slices/sessionSlice';
 import { formatDate } from '@/lib/utils';
-import { Session } from '@/types/session.types';
 import toast from 'react-hot-toast';
 
 export default function SessionsPage() {
-  const {
-    sessions,
-    isLoading,
-    fetchSessions,
-    logoutSession,
-    deleteSession,
-  } = useSessions();
+  const dispatch = useAppDispatch();
+  const { sessions, isLoading } = useAppSelector((state) => state.session);
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    dispatch(fetchSessions());
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      dispatch(fetchSessions());
+    }, 30000);
 
-  const handleLogout = async (sessionId: string) => {
-    if (confirm('Are you sure you want to logout this session?')) {
-      try {
-        await logoutSession(sessionId);
-        toast.success('Session logged out successfully');
-      } catch {
-        toast.error('Failed to logout session');
-      }
-    }
-  };
+    return () => clearInterval(interval);
+  }, [dispatch]);
 
   const handleDelete = async (sessionId: string) => {
     if (
@@ -44,25 +35,25 @@ export default function SessionsPage() {
       )
     ) {
       try {
-        await deleteSession(sessionId);
+        await dispatch(deleteSession(sessionId)).unwrap();
         toast.success('Session deleted successfully');
-      } catch {
-        toast.error('Failed to delete session');
+      } catch (error: any) {
+        toast.error(error || 'Failed to delete session');
       }
     }
   };
 
-  const getStatusBadge = (status: Session['status']) => {
-    const styles: Record<Session['status'], string> = {
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
       connected: 'bg-emerald-100 text-emerald-700',
       qr_waiting: 'bg-yellow-100 text-yellow-700',
       initializing: 'bg-blue-100 text-blue-700',
       disconnected: 'bg-red-100 text-red-700',
-      error: 'bg-red-100 text-red-700',
+      no_session: 'bg-gray-100 text-gray-700',
     };
 
     return (
-      <Badge className={`capitalize ${styles[status]}`}>
+      <Badge className={`capitalize ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
         {status.replace('_', ' ')}
       </Badge>
     );
@@ -101,7 +92,7 @@ export default function SessionsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sessions.map((session) => (
             <Card
-              key={session._id}
+              key={session.sessionId}
               className="flex flex-col rounded-2xl p-5"
             >
               {/* Session Header */}
@@ -148,6 +139,15 @@ export default function SessionsPage() {
                     </span>
                   </div>
                 )}
+
+                {session.retryCount !== undefined && session.retryCount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Retry Count:</span>
+                    <span className="font-medium text-orange-600">
+                      {session.retryCount}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -164,17 +164,6 @@ export default function SessionsPage() {
                     Details
                   </Button>
                 </Link>
-
-                {session.status === 'connected' && (
-                  <Button
-                    size="sm"
-                    onClick={() => handleLogout(session.sessionId)}
-                    className="gap-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                  >
-                    <Power className="h-4 w-4" />
-                    Logout
-                  </Button>
-                )}
 
                 <Button
                   size="sm"

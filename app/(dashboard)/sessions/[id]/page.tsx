@@ -5,12 +5,13 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Spinner } from '@/components/ui/spinner';
-import { useQRCode } from '@/hooks/useQrCode';
-import { useSocket } from '@/hooks/useSocket';
 import { formatDate } from '@/lib/utils';
-import { useSessionStore } from '@/store/sessionStore';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, Hash, Info, Phone, Power, RefreshCw, Smartphone, Trash2 } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { deleteSession, getSessionStatus, setCurrentSession } from '@/store/slices/sessionSlice';
+import {
+  ArrowLeft, Calendar, CheckCircle2, Clock, Hash, Info,
+  Phone, RefreshCw, Smartphone, Trash2
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -19,46 +20,29 @@ import toast from 'react-hot-toast';
 export default function SessionDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const sessionId = params.id as string;
 
-  const {
-    currentSession,
-    getSession,
-    getSessionStatus,
-    logoutSession,
-    deleteSession,
-    updateSessionInList,
-    isLoading,
-  } = useSessionStore();
-
-  const { qrCode, isLoading: qrLoading, refetch: refetchQR } = useQRCode(sessionId);
-  const { on, off, subscribeToSession } = useSocket();
+  const { currentSession, sessions, qrCode, isLoading } = useAppSelector((state) => state.session);
   const [isConnecting, setIsConnecting] = useState(false);
   const [countdown, setCountdown] = useState(5);
-  const [shouldFetchQR, setShouldFetchQR] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasNavigatedRef = useRef(false);
 
-  // Initial fetch session data
+  // Find session from store
   useEffect(() => {
-    if (sessionId) {
-      getSession(sessionId);
-      subscribeToSession(sessionId);
+    const session = sessions.find(s => s.sessionId === sessionId);
+    if (session) {
+      dispatch(setCurrentSession(session));
     }
-  }, [sessionId]);
+  }, [sessionId, sessions, dispatch]);
 
-  // Countdown timer for QR code fetch
+  // Countdown timer for initial wait
   useEffect(() => {
     if (currentSession && ['initializing', 'qr_waiting'].includes(currentSession.status) && countdown > 0) {
       countdownIntervalRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            setShouldFetchQR(true);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setCountdown((prev) => prev - 1);
       }, 1000);
 
       return () => {
@@ -69,24 +53,15 @@ export default function SessionDetailPage() {
     }
   }, [currentSession?.status, countdown]);
 
-  // Fetch QR code after countdown
-  useEffect(() => {
-    if (shouldFetchQR && !qrCode && !qrLoading) {
-      refetchQR();
-      setShouldFetchQR(false);
-    }
-  }, [shouldFetchQR, qrCode, qrLoading]);
-
-  // Status polling - check session status every 3 seconds using Redux
+  // Status polling - check session status every 3 seconds
   useEffect(() => {
     if (currentSession && ['initializing', 'qr_waiting'].includes(currentSession.status)) {
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          // Use Redux store method to fetch status
-          const statusData = await getSessionStatus(sessionId);
+          const result = await dispatch(getSessionStatus(sessionId)).unwrap();
           
-          // If status changed to connected, handle it
-          if (statusData?.status === 'connected' && currentSession.status !== 'connected') {
+          // If status changed to connected
+          if (result.status === 'connected' && currentSession.status !== 'connected') {
             setIsConnecting(false);
             toast.success('Session connected successfully!');
             
@@ -111,55 +86,13 @@ export default function SessionDetailPage() {
     } else if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
-  }, [currentSession?.status, sessionId, getSessionStatus]);
+  }, [currentSession?.status, sessionId, dispatch, router]);
 
-  // Socket event handlers
-  useEffect(() => {
-    const handleSessionStatus = (data: any) => {
-      if (data.sessionId === sessionId) {
-        updateSessionInList(sessionId, {
-          status: data.status,
-          connectedAt: data.connectedAt,
-          lastSeen: data.lastSeen,
-        });
-
-        if (data.status === 'connected') {
-          setIsConnecting(false);
-          toast.success('Session connected successfully!');
-          
-          // Navigate back to sessions after 2 seconds
-          if (!hasNavigatedRef.current) {
-            hasNavigatedRef.current = true;
-            setTimeout(() => {
-              router.push('/sessions');
-            }, 2000);
-          }
-        } else if (data.status === 'disconnected') {
-          toast.error('Session disconnected');
-        }
-      }
-    };
-
-    const handleQRCode = (data: any) => {
-      if (data.sessionId === sessionId) {
-        setIsConnecting(true);
-      }
-    };
-
-    on('session_status', handleSessionStatus);
-    on('qr_code', handleQRCode);
-
-    return () => {
-      off('session_status', handleSessionStatus);
-      off('qr_code', handleQRCode);
-    };
-  }, [sessionId, on, off, updateSessionInList, router]);
-
-  // Check if connected and navigate
+  // Check if already connected and navigate
   useEffect(() => {
     if (currentSession?.status === 'connected' && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
-      toast.success('Session connected successfully!');
+      toast.success('Session is already connected!');
       setTimeout(() => {
         router.push('/sessions');
       }, 2000);
@@ -178,34 +111,27 @@ export default function SessionDetailPage() {
     };
   }, []);
 
-  const handleLogout = async () => {
-    if (confirm('Are you sure you want to logout this session?')) {
+  const handleDelete = async () => {
+    if (confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
       try {
-        await logoutSession(sessionId);
-        toast.success('Session logged out successfully');
+        await dispatch(deleteSession(sessionId)).unwrap();
+        toast.success('Session deleted successfully');
         router.push('/sessions');
-      } catch (error) {
-        toast.error('Failed to logout session');
+      } catch (error: any) {
+        toast.error(error || 'Failed to delete session');
       }
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
-      try {
-        await deleteSession(sessionId);
-        toast.success('Session deleted successfully');
-        router.push('/sessions');
-      } catch (error) {
-        toast.error('Failed to delete session');
-      }
-    }
+  const handleRefresh = () => {
+    setCountdown(5);
+    dispatch(getSessionStatus(sessionId));
   };
 
   if (isLoading || !currentSession) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Spinner size="lg" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       </div>
     );
   }
@@ -241,14 +167,13 @@ export default function SessionDetailPage() {
                 </p>
               </div>
               <Badge
-                variant={
+                className={`text-xs font-semibold uppercase tracking-wide ${
                   currentSession.status === 'connected'
-                    ? 'success'
+                    ? 'bg-green-100 text-green-700'
                     : currentSession.status === 'qr_waiting'
-                      ? 'warning'
-                      : 'danger'
-                }
-                className="text-xs font-semibold uppercase tracking-wide"
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                }`}
               >
                 {currentSession.status.replace('_', ' ')}
               </Badge>
@@ -259,7 +184,7 @@ export default function SessionDetailPage() {
 
       {/* Connection Status Banner */}
       {isConnected && (
-        <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+        <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
               <CheckCircle2 className="h-6 w-6 text-green-600" />
@@ -269,7 +194,7 @@ export default function SessionDetailPage() {
                 Connected & Active
               </h3>
               <p className="text-sm text-green-700">
-                Redirecting you back to sessions...
+                Your WhatsApp session is ready to use
               </p>
             </div>
           </div>
@@ -299,27 +224,17 @@ export default function SessionDetailPage() {
                   <p className="text-sm text-gray-600">Please wait {countdown} second{countdown !== 1 ? 's' : ''}</p>
                 </div>
               </div>
-            ) : qrLoading || isConnecting ? (
-              <div className="flex flex-col items-center gap-4 py-16">
-                <Spinner size="lg" />
-                <div className="space-y-1 text-center">
-                  <p className="font-medium text-gray-900">
-                    {isConnecting ? 'Establishing connection...' : 'Generating QR code...'}
-                  </p>
-                  <p className="text-sm text-gray-600">Please wait a moment</p>
-                </div>
-              </div>
-            ) : qrCode ? (
+            ) : qrCode || currentSession.qrCode ? (
               <div className="flex flex-col items-center gap-8">
                 <div className="rounded-2xl border-4 border-gray-100 bg-white p-6 shadow-lg">
                   <img
-                    src={qrCode}
+                    src={qrCode || currentSession.qrCode}
                     alt="Scan QR Code"
                     className="h-64 w-64"
                   />
                 </div>
 
-                <Card className="w-full border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-5">
+                <Card className="w-full border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
@@ -351,30 +266,22 @@ export default function SessionDetailPage() {
 
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    setCountdown(5);
-                    setShouldFetchQR(false);
-                    refetchQR();
-                  }}
+                  onClick={handleRefresh}
                   className="gap-2 border-2 border-gray-300 font-semibold hover:bg-gray-50"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Refresh QR Code
+                  Refresh
                 </Button>
               </div>
             ) : (
-              <div className="py-16 text-center">
-                <p className="mb-6 text-gray-600">Failed to generate QR code</p>
-                <Button 
-                  onClick={() => {
-                    setCountdown(5);
-                    setShouldFetchQR(false);
-                  }} 
-                  className="gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Try Again
-                </Button>
+              <div className="flex flex-col items-center gap-4 py-16">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="space-y-1 text-center">
+                  <p className="font-medium text-gray-900">
+                    Generating QR code...
+                  </p>
+                  <p className="text-sm text-gray-600">Please wait a moment</p>
+                </div>
               </div>
             )}
           </div>
@@ -397,7 +304,7 @@ export default function SessionDetailPage() {
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Session ID</p>
                 <p className="mt-1 font-mono text-sm font-medium text-gray-900">
-                  {currentSession.sessionId.slice(0, 20)}...
+                  {currentSession.sessionId}
                 </p>
               </div>
             </div>
@@ -464,22 +371,6 @@ export default function SessionDetailPage() {
         </div>
 
         <div className="space-y-4 p-6">
-          {isConnected && (
-            <Button
-              variant="outline"
-              className="w-full justify-start gap-3 border-2 border-gray-200 py-6 transition-all hover:border-gray-300 hover:bg-gray-50"
-              onClick={handleLogout}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
-                <Power className="h-5 w-5 text-orange-600" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-gray-900">Logout Session</div>
-                <div className="text-xs text-gray-500">Disconnect from WhatsApp</div>
-              </div>
-            </Button>
-          )}
-
           <Button
             variant="outline"
             className="w-full justify-start gap-3 border-2 border-red-200 py-8 text-red-600 transition-all hover:border-red-300 hover:bg-red-50"
@@ -495,16 +386,6 @@ export default function SessionDetailPage() {
           </Button>
         </div>
       </Card>
-
-      {/* Help Section */}
-      {isConnected && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-          <h3 className="mb-3 font-semibold text-gray-900">Session Active</h3>
-          <p className="text-sm leading-relaxed text-gray-600">
-            Your session is connected and ready. You can now send messages through this WhatsApp number. Logging out will disconnect your WhatsApp but keep the session data. Deleting will remove everything permanently.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

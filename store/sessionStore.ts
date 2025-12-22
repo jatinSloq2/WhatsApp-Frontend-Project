@@ -1,205 +1,275 @@
-// src/store/sessionStore.ts
+// src/store/slices/sessionSlice.ts
 
-import { create } from 'zustand';
-import { Session, CreateSessionData } from '@/types/session.types';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { sessionService } from '@/lib/api/session.service';
 
-interface SessionStore {
+export interface Session {
+  _id?: string;
+  sessionId: string;
+  sessionName: string;
+  phoneNumber: string;
+  status: 'initializing' | 'qr_waiting' | 'connected' | 'disconnected' | 'no_session';
+  qrCode?: string;
+  lastConnected?: string;
+  lastDisconnected?: string;
+  retryCount?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  connectedAt?: string;
+  lastSeen?: string;
+}
+
+interface SessionState {
   sessions: Session[];
   currentSession: Session | null;
   isLoading: boolean;
   error: string | null;
-  
-  fetchSessions: () => Promise<void>;
-  createSession: (data: CreateSessionData) => Promise<Session>;
-  getSession: (sessionId: string) => Promise<void>;
-  getSessionStatus: (sessionId: string) => Promise<{
-    sessionId: string;
-    status: string;
-    connectedAt?: string;
-    lastSeen?: string;
-  } | null>;
-  updateSession: (sessionId: string, data: Partial<Session>) => Promise<void>;
-  deleteSession: (sessionId: string) => Promise<void>;
-  logoutSession: (sessionId: string) => Promise<void>;
-  setCurrentSession: (session: Session | null) => void;
-  updateSessionInList: (sessionId: string, updates: Partial<Session>) => void;
-  clearError: () => void;
+  qrCode: string | null;
 }
 
-export const useSessionStore = create<SessionStore>((set, get) => ({
+const initialState: SessionState = {
   sessions: [],
   currentSession: null,
   isLoading: false,
   error: null,
+  qrCode: null,
+};
 
-  fetchSessions: async () => {
-    set({ isLoading: true, error: null });
+// Async thunks
+export const createSession = createAsyncThunk(
+  'session/create',
+  async (data: { phoneNumber: string; sessionName: string }, { rejectWithValue }) => {
+    try {
+      // Generate sessionId from phone number
+      const sessionId = data.phoneNumber.replace(/[^0-9]/g, '');
+      
+      const response = await sessionService.createSession({ 
+        sessionId,
+        phoneNumber: data.phoneNumber,
+        sessionName: data.sessionName 
+      });
+
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to create session');
+      }
+
+      return {
+        sessionId: response.data.data.sessionId,
+        sessionName: data.sessionName,
+        phoneNumber: data.phoneNumber,
+        status: response.data.data.status as Session['status'],
+        qrCode: response.data.data.qr,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create session');
+    }
+  }
+);
+
+export const fetchSessions = createAsyncThunk(
+  'session/fetchAll',
+  async (_, { rejectWithValue }) => {
     try {
       const response = await sessionService.getSessions();
-      set({
-        sessions: response.data.sessions,
-        isLoading: false,
-      });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to fetch sessions',
-        isLoading: false,
-      });
-    }
-  },
-
-  createSession: async (data) => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await sessionService.createSession(data);
-      const newSession = response.data;
       
-      set((state) => ({
-        sessions: [...state.sessions, newSession],
-        currentSession: newSession,
-        isLoading: false,
+      if (!response.data.success) {
+        return rejectWithValue('Failed to fetch sessions');
+      }
+
+      // Map API response to Session format
+      return response.data.sessions.map(s => ({
+        sessionId: s.sessionId,
+        sessionName: s.sessionId, // Use sessionId as name if not available
+        phoneNumber: s.phoneNumber || '',
+        status: s.status as Session['status'],
+        isActive: s.isActive,
+        createdAt: new Date().toISOString(),
       }));
-      
-      return newSession;
     } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to create session',
-        isLoading: false,
-      });
-      throw error;
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch sessions');
     }
-  },
+  }
+);
 
-  getSession: async (sessionId) => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await sessionService.getSession(sessionId);
-      set({
-        currentSession: response.data,
-        isLoading: false,
-      });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to get session',
-        isLoading: false,
-      });
-    }
-  },
-
-  // New method: Get session status (lightweight, for polling)
-  getSessionStatus: async (sessionId) => {
+export const getSessionStatus = createAsyncThunk(
+  'session/getStatus',
+  async (sessionId: string, { rejectWithValue }) => {
     try {
       const response = await sessionService.getSessionStatus(sessionId);
-      const statusData = response.data;
       
-      // Update the session in store with new status
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.sessionId === sessionId 
-            ? { 
-                ...s, 
-                status: statusData.status as any,
-                connectedAt: statusData.connectedAt || s.connectedAt,
-                lastSeen: statusData.lastSeen || s.lastSeen,
-              } 
-            : s
-        ),
-        currentSession:
-          state.currentSession?.sessionId === sessionId
-            ? { 
-                ...state.currentSession, 
-                status: statusData.status as any,
-                connectedAt: statusData.connectedAt || state.currentSession.connectedAt,
-                lastSeen: statusData.lastSeen || state.currentSession.lastSeen,
-              }
-            : state.currentSession,
-      }));
+      return {
+        sessionId,
+        status: response.data.status as Session['status'],
+        phoneNumber: response.data.data?.phone || null,
+        lastConnected: response.data.data?.lastConnected || null,
+        retryCount: response.data.data?.retryCount || 0,
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to get session status');
+    }
+  }
+);
+
+export const deleteSession = createAsyncThunk(
+  'session/delete',
+  async (sessionId: string, { rejectWithValue }) => {
+    try {
+      const response = await sessionService.deleteSession(sessionId);
       
-      return statusData;
-    } catch (error: any) {
-      console.error('Failed to get session status:', error);
-      return null;
-    }
-  },
+      if (!response.data.success) {
+        return rejectWithValue(response.data.message || 'Failed to delete session');
+      }
 
-  updateSession: async (sessionId, data) => {
-    set({ isLoading: true, error: null });
+      return sessionId;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete session');
+    }
+  }
+);
+
+export const fetchAllSessionsFromDB = createAsyncThunk(
+  'session/fetchAllFromDB',
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await sessionService.updateSession(sessionId, data);
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.sessionId === sessionId ? response.data : s
-        ),
-        currentSession:
-          state.currentSession?.sessionId === sessionId
-            ? response.data
-            : state.currentSession,
-        isLoading: false,
-      }));
+      const response = await sessionService.getAllSessionsFromDB();
+      
+      if (!response.data.success) {
+        return rejectWithValue('Failed to fetch sessions from DB');
+      }
+
+      return response.data.sessions;
     } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to update session',
-        isLoading: false,
-      });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch sessions');
     }
-  },
+  }
+);
 
-  deleteSession: async (sessionId) => {
-    set({ isLoading: true, error: null });
-    try {
-      await sessionService.deleteSession(sessionId);
-      set((state) => ({
-        sessions: state.sessions.filter((s) => s.sessionId !== sessionId),
-        currentSession:
-          state.currentSession?.sessionId === sessionId
-            ? null
-            : state.currentSession,
-        isLoading: false,
-      }));
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to delete session',
-        isLoading: false,
-      });
-      throw error;
-    }
-  },
-
-  logoutSession: async (sessionId) => {
-    set({ isLoading: true, error: null });
-    try {
-      await sessionService.logoutSession(sessionId);
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.sessionId === sessionId
-            ? { ...s, status: 'disconnected' as const }
-            : s
-        ),
-        isLoading: false,
-      }));
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Failed to logout session',
-        isLoading: false,
-      });
-      throw error;
-    }
-  },
-
-  setCurrentSession: (session) => set({ currentSession: session }),
-
-  updateSessionInList: (sessionId, updates) => {
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
+// Slice
+const sessionSlice = createSlice({
+  name: 'session',
+  initialState,
+  reducers: {
+    setCurrentSession: (state, action: PayloadAction<Session | null>) => {
+      state.currentSession = action.payload;
+    },
+    updateSessionInList: (state, action: PayloadAction<{ sessionId: string; updates: Partial<Session> }>) => {
+      const { sessionId, updates } = action.payload;
+      
+      state.sessions = state.sessions.map(s =>
         s.sessionId === sessionId ? { ...s, ...updates } : s
-      ),
-      currentSession:
-        state.currentSession?.sessionId === sessionId
-          ? { ...state.currentSession, ...updates }
-          : state.currentSession,
-    }));
-  },
+      );
 
-  clearError: () => set({ error: null }),
-}));
+      if (state.currentSession?.sessionId === sessionId) {
+        state.currentSession = { ...state.currentSession, ...updates };
+      }
+    },
+    setQRCode: (state, action: PayloadAction<string | null>) => {
+      state.qrCode = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    // Create session
+    builder
+      .addCase(createSession.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(createSession.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const newSession = action.payload as Session;
+        state.sessions.push(newSession);
+        state.currentSession = newSession;
+        state.qrCode = newSession.qrCode || null;
+      })
+      .addCase(createSession.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch sessions
+    builder
+      .addCase(fetchSessions.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchSessions.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.sessions = action.payload as Session[];
+      })
+      .addCase(fetchSessions.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Get session status
+    builder
+      .addCase(getSessionStatus.fulfilled, (state, action) => {
+        const { sessionId, status, phoneNumber, lastConnected, retryCount } = action.payload;
+        
+        state.sessions = state.sessions.map(s =>
+          s.sessionId === sessionId
+            ? {
+                ...s,
+                status,
+                phoneNumber: phoneNumber || s.phoneNumber,
+                lastConnected: lastConnected || s.lastConnected,
+                retryCount: retryCount ?? s.retryCount,
+              }
+            : s
+        );
+
+        if (state.currentSession?.sessionId === sessionId) {
+          state.currentSession = {
+            ...state.currentSession,
+            status,
+            phoneNumber: phoneNumber || state.currentSession.phoneNumber,
+            lastConnected: lastConnected || state.currentSession.lastConnected,
+            retryCount: retryCount ?? state.currentSession.retryCount,
+          };
+        }
+      });
+
+    // Delete session
+    builder
+      .addCase(deleteSession.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteSession.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.sessions = state.sessions.filter(s => s.sessionId !== action.payload);
+        
+        if (state.currentSession?.sessionId === action.payload) {
+          state.currentSession = null;
+        }
+      })
+      .addCase(deleteSession.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch all from DB
+    builder
+      .addCase(fetchAllSessionsFromDB.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllSessionsFromDB.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.sessions = action.payload;
+      })
+      .addCase(fetchAllSessionsFromDB.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      });
+  },
+});
+
+export const { setCurrentSession, updateSessionInList, setQRCode, clearError } = sessionSlice.actions;
+export default sessionSlice.reducer;

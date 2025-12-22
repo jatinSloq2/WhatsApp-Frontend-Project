@@ -44,13 +44,15 @@ export default function NewSessionPage() {
     if (!validate()) return;
 
     const payload = {
-      phoneNumber: `+91${mobile}`, // ALWAYS send +91
+      phoneNumber: `+91${mobile}`,
       sessionName,
     };
 
     try {
       const result = await dispatch(createSession(payload)).unwrap();
       toast.success('Session created successfully');
+      
+      // Navigate to session detail page to show QR code
       router.push(`/sessions/${result.sessionId}`);
     } catch (error: any) {
       toast.error(error || 'Failed to create session');
@@ -82,7 +84,7 @@ export default function NewSessionPage() {
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Mobile Number
             </label>
-            <div className="flex rounded-lg border border-gray-300 focus-within:border-blue-600">
+            <div className="flex rounded-lg border border-gray-300 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600">
               <span className="flex items-center rounded-l-lg bg-gray-100 px-3 text-sm text-gray-700">
                 +91
               </span>
@@ -146,10 +148,10 @@ export default function NewSessionPage() {
             </Link>
             <Button
               type="submit"
-              isLoading={isLoading}
-              className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+              disabled={isLoading}
+              className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              Create Session
+              {isLoading ? 'Creating...' : 'Create Session'}
             </Button>
           </div>
         </form>

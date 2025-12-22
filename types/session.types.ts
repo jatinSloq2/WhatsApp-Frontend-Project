@@ -1,40 +1,35 @@
 // src/types/session.types.ts
 
 export interface Session {
-  _id: string;
+  _id?: string;
   sessionId: string;
-  userId: string;
-  phoneNumber: string;
   sessionName: string;
-  status: SessionStatus;
-  isActive: boolean;
+  phoneNumber: string;
+  status: 'initializing' | 'qr_waiting' | 'connected' | 'disconnected' | 'no_session';
   qrCode?: string;
+  lastConnected?: string;
+  lastDisconnected?: string;
+  qrGenerated?: boolean;
+  retryCount?: number;
+  isActive: boolean;
+  metadata?: Record<string, string>;
+  createdAt: string;
+  updatedAt?: string;
   connectedAt?: string;
   lastSeen?: string;
-  retryCount: number;
-  metadata?: {
-    waVersion?: string;
-    platform?: string;
-  };
-  createdAt: string;
-  updatedAt: string;
 }
 
-export type SessionStatus = 
-  | 'initializing'
-  | 'qr_waiting'
-  | 'connected'
-  | 'disconnected'
-  | 'error';
-
 export interface CreateSessionData {
+  sessionId?: string;
   phoneNumber: string;
   sessionName: string;
 }
 
-export interface SessionState {
-  sessions: Session[];
-  currentSession: Session | null;
-  isLoading: boolean;
-  error: string | null;
+export interface SessionStatusResponse {
+  sessionId: string;
+  status: Session['status'];
+  connectedAt?: string;
+  lastSeen?: string;
+  phoneNumber?: string;
+  retryCount?: number;
 }
