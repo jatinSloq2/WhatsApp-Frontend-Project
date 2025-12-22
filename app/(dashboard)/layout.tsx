@@ -15,7 +15,8 @@ import {
   Smartphone,
   MessageCircle,
   Moon,
-  Sun
+  Sun,
+  LayoutTemplate
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Sessions', href: '/sessions', icon: Smartphone },
   { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Campaigns', href: '/campaigns', icon: Send },
+  { name: 'Templates', href: '/templates', icon: LayoutTemplate },
   { name: 'Chatbots', href: '/chatbots', icon: Bot },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -40,7 +42,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { theme, toggleTheme } = useTheme();
-  
+
   const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
