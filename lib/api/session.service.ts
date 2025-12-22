@@ -1,21 +1,30 @@
 // src/lib/api/session.service.ts
 
 import { sessionApi } from './client';
-import { Session, CreateSessionData } from '@/types/session.types';
+import { Session } from '@/types/session.types';
+
+export interface CreateSessionData {
+  sessionId: string;
+  phoneNumber: string;
+  sessionName: string;
+}
 
 export const sessionService = {
   // Create session and get QR code
   async createSession(data: CreateSessionData) {
+    // Send ONLY the 'id' field as that's what your API expects
+    // The API only needs the sessionId (phone number without country code)
     return sessionApi.post<{
       success: boolean;
       message: string;
       data: {
         sessionId: string;
         status: string;
-        qr?: string;
-        phoneNumber?: string;
+        qr: string;
       };
-    }>('/create', { id: data.sessionId || data.phoneNumber });
+    }>('/sessions/create', { 
+      id: data.sessionId  // API expects just 'id' field
+    });
   },
 
   // List all active sessions
@@ -29,7 +38,7 @@ export const sessionService = {
         phoneNumber: string | null;
         isActive: boolean;
       }>;
-    }>('/list');
+    }>('/sessions/list');
   },
 
   // Get session status
@@ -42,7 +51,7 @@ export const sessionService = {
         lastConnected: string;
         retryCount: number;
       };
-    }>(`/status/${sessionId}`);
+    }>(`/sessions/status/${sessionId}`);
   },
 
   // Delete session
@@ -50,7 +59,7 @@ export const sessionService = {
     return sessionApi.delete<{
       success: boolean;
       message: string;
-    }>(`/${sessionId}`);
+    }>(`/sessions/${sessionId}`);
   },
 
   // Get all sessions from DB (including inactive)
@@ -59,7 +68,7 @@ export const sessionService = {
       success: boolean;
       count: number;
       sessions: Session[];
-    }>('/db/all');
+    }>('/sessions/db/all');
   },
 
   // Restore sessions after restart
@@ -67,6 +76,18 @@ export const sessionService = {
     return sessionApi.post<{
       success: boolean;
       message: string;
-    }>('/restore');
+    }>('/sessions/restore');
+  },
+
+  // Save session metadata (sessionName, phoneNumber) to DB
+  async saveSessionMetadata(data: {
+    sessionId: string;
+    sessionName: string;
+    phoneNumber: string;
+  }) {
+    return sessionApi.post<{
+      success: boolean;
+      message: string;
+    }>('/sessions/metadata', data);
   },
 };

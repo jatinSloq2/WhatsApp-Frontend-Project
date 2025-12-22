@@ -25,9 +25,7 @@ export default function SessionDetailPage() {
 
   const { currentSession, sessions, qrCode, isLoading } = useAppSelector((state) => state.session);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [countdown, setCountdown] = useState(5);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasNavigatedRef = useRef(false);
 
   // Find session from store
@@ -38,32 +36,28 @@ export default function SessionDetailPage() {
     }
   }, [sessionId, sessions, dispatch]);
 
-  // Countdown timer for initial wait
-  useEffect(() => {
-    if (currentSession && ['initializing', 'qr_waiting'].includes(currentSession.status) && countdown > 0) {
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-
-      return () => {
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-        }
-      };
-    }
-  }, [currentSession?.status, countdown]);
-
   // Status polling - check session status every 3 seconds
   useEffect(() => {
-    if (currentSession && ['initializing', 'qr_waiting'].includes(currentSession.status)) {
+    // Poll if status is qr_ready, qr_waiting, or initializing
+    if (currentSession && ['initializing', 'qr_ready', 'qr_waiting'].includes(currentSession.status)) {
+      console.log('Starting polling for session:', sessionId, 'current status:', currentSession.status);
+      
       pollingIntervalRef.current = setInterval(async () => {
         try {
+          console.log('Polling session status...');
           const result = await dispatch(getSessionStatus(sessionId)).unwrap();
+          console.log('Polling result:', result);
           
           // If status changed to connected
-          if (result.status === 'connected' && currentSession.status !== 'connected') {
+          if (result.status === 'connected') {
+            console.log('Session connected!');
             setIsConnecting(false);
             toast.success('Session connected successfully!');
+            
+            // Clear polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+            }
             
             // Navigate after 2 seconds
             if (!hasNavigatedRef.current) {
@@ -80,10 +74,12 @@ export default function SessionDetailPage() {
 
       return () => {
         if (pollingIntervalRef.current) {
+          console.log('Clearing polling interval');
           clearInterval(pollingIntervalRef.current);
         }
       };
     } else if (pollingIntervalRef.current) {
+      console.log('Stopping polling, status is:', currentSession?.status);
       clearInterval(pollingIntervalRef.current);
     }
   }, [currentSession?.status, sessionId, dispatch, router]);
@@ -105,9 +101,6 @@ export default function SessionDetailPage() {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
     };
   }, []);
 
@@ -123,9 +116,13 @@ export default function SessionDetailPage() {
     }
   };
 
-  const handleRefresh = () => {
-    setCountdown(5);
-    dispatch(getSessionStatus(sessionId));
+  const handleRefresh = async () => {
+    try {
+      await dispatch(getSessionStatus(sessionId)).unwrap();
+      toast.success('Status refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh status');
+    }
   };
 
   if (isLoading || !currentSession) {
@@ -137,7 +134,8 @@ export default function SessionDetailPage() {
   }
 
   const isConnected = currentSession.status === 'connected';
-  const needsQR = ['initializing', 'qr_waiting'].includes(currentSession.status);
+  const needsQR = ['initializing', 'qr_ready', 'qr_waiting'].includes(currentSession.status);
+  const displayQR = qrCode || currentSession.qrCode;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-6">
@@ -170,7 +168,7 @@ export default function SessionDetailPage() {
                 className={`text-xs font-semibold uppercase tracking-wide ${
                   currentSession.status === 'connected'
                     ? 'bg-green-100 text-green-700'
-                    : currentSession.status === 'qr_waiting'
+                    : ['qr_ready', 'qr_waiting'].includes(currentSession.status)
                       ? 'bg-yellow-100 text-yellow-700'
                       : 'bg-red-100 text-red-700'
                 }`}
@@ -212,23 +210,11 @@ export default function SessionDetailPage() {
           </div>
 
           <div className="p-8">
-            {countdown > 0 ? (
-              <div className="flex flex-col items-center gap-4 py-16">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
-                  <span className="text-3xl font-bold text-blue-600">{countdown}</span>
-                </div>
-                <div className="space-y-1 text-center">
-                  <p className="font-medium text-gray-900">
-                    Preparing your QR code...
-                  </p>
-                  <p className="text-sm text-gray-600">Please wait {countdown} second{countdown !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-            ) : qrCode || currentSession.qrCode ? (
+            {displayQR ? (
               <div className="flex flex-col items-center gap-8">
                 <div className="rounded-2xl border-4 border-gray-100 bg-white p-6 shadow-lg">
                   <img
-                    src={qrCode || currentSession.qrCode}
+                    src={displayQR}
                     alt="Scan QR Code"
                     className="h-64 w-64"
                   />
@@ -254,12 +240,18 @@ export default function SessionDetailPage() {
                       </div>
                       <div className="flex items-start gap-3 text-sm text-blue-800">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Tap Link a Device</span>
+                        <span>Tap "Link a Device"</span>
                       </div>
                       <div className="flex items-start gap-3 text-sm text-blue-800">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Scan the QR code to complete connection</span>
+                        <span>Scan the QR code above to complete connection</span>
                       </div>
+                    </div>
+
+                    {/* Polling indicator */}
+                    <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-100 py-3 text-sm font-medium text-blue-700">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-blue-600"></div>
+                      <span>Waiting for connection... (auto-checking every 3s)</span>
                     </div>
                   </div>
                 </Card>
@@ -270,7 +262,7 @@ export default function SessionDetailPage() {
                   className="gap-2 border-2 border-gray-300 font-semibold hover:bg-gray-50"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Refresh
+                  Refresh Status
                 </Button>
               </div>
             ) : (

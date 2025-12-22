@@ -2,22 +2,21 @@
 
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  MessageSquare,
-  Smartphone,
-  Send,
-  Bot,
-  Settings,
-  LogOut,
-  User,
-} from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
 import { cn, getInitials } from '@/lib/utils';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { logoutUser } from '@/store/slices/authSlice';
+import {
+  Bot,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  Send,
+  Settings,
+  Smartphone
+} from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -35,7 +34,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, user, logout, isLoading } = useAuthStore();
+  const dispatch = useAppDispatch();
+  
+  const { isAuthenticated, user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -44,8 +45,13 @@ export default function DashboardLayout({
   }, [isAuthenticated, isLoading, router]);
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/login');
+    try {
+      await dispatch(logoutUser()).unwrap();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      router.push('/login');
+    }
   };
 
   if (isLoading || !isAuthenticated) {
@@ -122,7 +128,7 @@ export default function DashboardLayout({
           </h1>
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700">
-              {user?.subscriptionTier?.toUpperCase()} Plan
+              {user?.subscriptionTier?.toUpperCase() || 'FREE'} Plan
             </div>
           </div>
         </header>

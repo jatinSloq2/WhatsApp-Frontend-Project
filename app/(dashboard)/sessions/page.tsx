@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 export default function SessionsPage() {
   const dispatch = useAppDispatch();
   const { sessions, isLoading } = useAppSelector((state) => state.session);
-
+  console.log(sessions)
   useEffect(() => {
     dispatch(fetchSessions());
     
