@@ -84,17 +84,6 @@ export default function SessionDetailPage() {
     }
   }, [currentSession?.status, sessionId, dispatch, router]);
 
-  // Check if already connected and navigate
-  useEffect(() => {
-    if (currentSession?.status === 'connected' && !hasNavigatedRef.current) {
-      hasNavigatedRef.current = true;
-      toast.success('Session is already connected!');
-      setTimeout(() => {
-        router.push('/sessions');
-      }, 2000);
-    }
-  }, [currentSession?.status, router]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {

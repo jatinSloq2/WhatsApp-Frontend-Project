@@ -1,6 +1,6 @@
 // src/app/layout.tsx
-
 import { ReduxProvider } from '@/components/providers/ReduxProvider';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
@@ -19,11 +19,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ReduxProvider>
-        {children}
-        </ReduxProvider>
+        <ThemeProvider>
+          <ReduxProvider>
+            {children}
+          </ReduxProvider>
+        </ThemeProvider>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -31,6 +33,18 @@ export default function RootLayout({
             style: {
               background: '#333',
               color: '#fff',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
             },
           }}
         />
