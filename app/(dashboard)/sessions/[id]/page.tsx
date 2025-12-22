@@ -1,5 +1,4 @@
 // src/app/(dashboard)/sessions/[id]/page.tsx
-
 'use client';
 
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +9,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { deleteSession, getSessionStatus, setCurrentSession } from '@/store/slices/sessionSlice';
 import {
   ArrowLeft, Calendar, CheckCircle2, Clock, Hash, Info,
+  Loader2,
   Phone, RefreshCw, Smartphone, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
@@ -28,7 +28,6 @@ export default function SessionDetailPage() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const hasNavigatedRef = useRef(false);
 
-  // Find session from store
   useEffect(() => {
     const session = sessions.find(s => s.sessionId === sessionId);
     if (session) {
@@ -36,30 +35,20 @@ export default function SessionDetailPage() {
     }
   }, [sessionId, sessions, dispatch]);
 
-  // Status polling - check session status every 3 seconds
   useEffect(() => {
-    // Poll if status is qr_ready, qr_waiting, or initializing
     if (currentSession && ['initializing', 'qr_ready', 'qr_waiting'].includes(currentSession.status)) {
-      console.log('Starting polling for session:', sessionId, 'current status:', currentSession.status);
-      
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          console.log('Polling session status...');
           const result = await dispatch(getSessionStatus(sessionId)).unwrap();
-          console.log('Polling result:', result);
           
-          // If status changed to connected
           if (result.status === 'connected') {
-            console.log('Session connected!');
             setIsConnecting(false);
             toast.success('Session connected successfully!');
             
-            // Clear polling
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
             }
             
-            // Navigate after 2 seconds
             if (!hasNavigatedRef.current) {
               hasNavigatedRef.current = true;
               setTimeout(() => {
@@ -74,17 +63,14 @@ export default function SessionDetailPage() {
 
       return () => {
         if (pollingIntervalRef.current) {
-          console.log('Clearing polling interval');
           clearInterval(pollingIntervalRef.current);
         }
       };
     } else if (pollingIntervalRef.current) {
-      console.log('Stopping polling, status is:', currentSession?.status);
       clearInterval(pollingIntervalRef.current);
     }
   }, [currentSession?.status, sessionId, dispatch, router]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -117,7 +103,10 @@ export default function SessionDetailPage() {
   if (isLoading || !currentSession) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <div className="relative">
+          <div className="h-16 w-16 animate-spin rounded-full border-4 border-emerald-200 dark:border-emerald-900 border-t-emerald-600 dark:border-t-emerald-400" />
+          <div className="absolute inset-0 h-16 w-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 opacity-20 blur-xl animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -132,34 +121,34 @@ export default function SessionDetailPage() {
       <div className="space-y-4">
         <Link
           href="/sessions"
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 transition-colors hover:text-gray-900 dark:hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Sessions
         </Link>
 
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg">
-            <Smartphone className="h-7 w-7 text-white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-2xl">
+            <Smartphone className="h-8 w-8 text-white" />
           </div>
           <div className="flex-1">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                   {currentSession.sessionName}
                 </h1>
-                <p className="mt-2 flex items-center gap-2 text-gray-600">
+                <p className="mt-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
                   <Phone className="h-4 w-4" />
                   <span className="text-sm font-medium">{currentSession.phoneNumber}</span>
                 </p>
               </div>
               <Badge
-                className={`text-xs font-semibold uppercase tracking-wide ${
+                className={`text-xs font-bold uppercase tracking-wide ${
                   currentSession.status === 'connected'
-                    ? 'bg-green-100 text-green-700'
+                    ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300'
                     : ['qr_ready', 'qr_waiting'].includes(currentSession.status)
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
+                      ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
+                      : 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
                 }`}
               >
                 {currentSession.status.replace('_', ' ')}
@@ -171,16 +160,16 @@ export default function SessionDetailPage() {
 
       {/* Connection Status Banner */}
       {isConnected && (
-        <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-6">
+        <Card className="border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 p-6 shadow-xl">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+              <CheckCircle2 className="h-7 w-7 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-green-900">
+              <h3 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
                 Connected & Active
               </h3>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-emerald-700 dark:text-emerald-300">
                 Your WhatsApp session is ready to use
               </p>
             </div>
@@ -190,18 +179,18 @@ export default function SessionDetailPage() {
 
       {/* QR Code Section */}
       {needsQR && (
-        <Card className="overflow-hidden border-2 border-gray-200 shadow-sm">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
+        <Card className="overflow-hidden border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl">
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-5">
             <div className="flex items-center gap-3">
-              <Smartphone className="h-6 w-6 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Scan QR Code</h2>
+              <Smartphone className="h-6 w-6 text-white" />
+              <h2 className="text-xl font-bold text-white">Scan QR Code</h2>
             </div>
           </div>
 
           <div className="p-8">
             {displayQR ? (
               <div className="flex flex-col items-center gap-8">
-                <div className="rounded-2xl border-4 border-gray-100 bg-white p-6 shadow-lg">
+                <div className="rounded-3xl border-4 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-8 shadow-2xl">
                   <img
                     src={displayQR}
                     alt="Scan QR Code"
@@ -209,37 +198,31 @@ export default function SessionDetailPage() {
                   />
                 </div>
 
-                <Card className="w-full border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+                <Card className="w-full border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950 dark:to-teal-950 p-6">
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                        <Info className="h-5 w-5 text-blue-600" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                        <Info className="h-6 w-6 text-white" />
                       </div>
-                      <h4 className="font-semibold text-blue-900">How to connect:</h4>
+                      <h4 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">How to connect:</h4>
                     </div>
 
                     <div className="space-y-3 pl-3">
-                      <div className="flex items-start gap-3 text-sm text-blue-800">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Open WhatsApp on your phone</span>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm text-blue-800">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Go to Settings → Linked Devices</span>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm text-blue-800">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Tap "Link a Device"</span>
-                      </div>
-                      <div className="flex items-start gap-3 text-sm text-blue-800">
-                        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
-                        <span>Scan the QR code above to complete connection</span>
-                      </div>
+                      {[
+                        'Open WhatsApp on your phone',
+                        'Go to Settings → Linked Devices',
+                        'Tap "Link a Device"',
+                        'Scan the QR code above to complete connection'
+                      ].map((step, index) => (
+                        <div key={index} className="flex items-start gap-3 text-sm text-emerald-800 dark:text-emerald-200">
+                          <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>{step}</span>
+                        </div>
+                      ))}
                     </div>
 
-                    {/* Polling indicator */}
-                    <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-100 py-3 text-sm font-medium text-blue-700">
-                      <div className="h-2 w-2 animate-pulse rounded-full bg-blue-600"></div>
+                    <div className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-100 dark:bg-emerald-900 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Waiting for connection... (auto-checking every 3s)</span>
                     </div>
                   </div>
@@ -248,7 +231,7 @@ export default function SessionDetailPage() {
                 <Button
                   variant="outline"
                   onClick={handleRefresh}
-                  className="gap-2 border-2 border-gray-300 font-semibold hover:bg-gray-50"
+                  className="gap-2 border-2 border-gray-300 dark:border-gray-700 font-semibold hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Refresh Status
@@ -256,12 +239,12 @@ export default function SessionDetailPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4 py-16">
-                <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                <div className="h-16 w-16 animate-spin rounded-full border-4 border-emerald-200 dark:border-emerald-900 border-t-emerald-600 dark:border-t-emerald-400" />
                 <div className="space-y-1 text-center">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-white">
                     Generating QR code...
                   </p>
-                  <p className="text-sm text-gray-600">Please wait a moment</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Please wait a moment</p>
                 </div>
               </div>
             )}
@@ -270,99 +253,64 @@ export default function SessionDetailPage() {
       )}
 
       {/* Session Information */}
-      <Card className="overflow-hidden border-2 border-gray-200 shadow-sm">
-        <div className="bg-gradient-to-r from-gray-50 to-slate-50 px-6 py-4">
+      <Card className="overflow-hidden border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl">
+        <div className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 px-6 py-5">
           <div className="flex items-center gap-3">
-            <Hash className="h-6 w-6 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Session Information</h2>
+            <Hash className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Session Information</h2>
           </div>
         </div>
 
         <div className="space-y-4 p-6">
-          <div className="flex items-center justify-between rounded-lg border-2 border-gray-100 p-4">
-            <div className="flex items-center gap-3">
-              <Hash className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Session ID</p>
-                <p className="mt-1 font-mono text-sm font-medium text-gray-900">
-                  {currentSession.sessionId}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border-2 border-gray-100 p-4">
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Phone Number</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {currentSession.phoneNumber}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border-2 border-gray-100 p-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-gray-400" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Created</p>
-                <p className="mt-1 text-sm font-medium text-gray-900">
-                  {formatDate(currentSession.createdAt)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {currentSession.connectedAt && (
-            <div className="flex items-center justify-between rounded-lg border-2 border-green-200 bg-green-50 p-4">
+          {[
+            { icon: Hash, label: 'Session ID', value: currentSession.sessionId, mono: true },
+            { icon: Phone, label: 'Phone Number', value: currentSession.phoneNumber },
+            { icon: Calendar, label: 'Created', value: formatDate(currentSession.createdAt) },
+            ...(currentSession.connectedAt ? [{ icon: CheckCircle2, label: 'Connected At', value: formatDate(currentSession.connectedAt), success: true }] : []),
+            ...(currentSession.lastSeen ? [{ icon: Clock, label: 'Last Seen', value: formatDate(currentSession.lastSeen) }] : []),
+          ].map((item, index) => (
+            <div
+              key={index}
+              className={`flex items-center justify-between rounded-xl border-2 p-4 ${
+                item.success
+                  ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950'
+                  : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50'
+              }`}
+            >
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <item.icon className={`h-5 w-5 ${item.success ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`} />
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-green-700">Connected At</p>
-                  <p className="mt-1 text-sm font-semibold text-green-900">
-                    {formatDate(currentSession.connectedAt)}
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {item.label}
+                  </p>
+                  <p className={`mt-1 text-sm font-semibold ${item.mono ? 'font-mono' : ''} ${item.success ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-900 dark:text-white'}`}>
+                    {item.value}
                   </p>
                 </div>
               </div>
             </div>
-          )}
-
-          {currentSession.lastSeen && (
-            <div className="flex items-center justify-between rounded-lg border-2 border-gray-100 p-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-gray-400" />
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Last Seen</p>
-                  <p className="mt-1 text-sm font-medium text-gray-900">
-                    {formatDate(currentSession.lastSeen)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          ))}
         </div>
       </Card>
 
       {/* Actions */}
-      <Card className="overflow-hidden border-2 border-gray-200 shadow-sm">
-        <div className="bg-gradient-to-r from-gray-50 to-slate-50 px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">Actions</h2>
+      <Card className="overflow-hidden border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-xl">
+        <div className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 px-6 py-5">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Actions</h2>
         </div>
 
-        <div className="space-y-4 p-6">
+        <div className="p-6">
           <Button
             variant="outline"
-            className="w-full justify-start gap-3 border-2 border-red-200 py-8 text-red-600 transition-all hover:border-red-300 hover:bg-red-50"
+            className="w-full justify-start gap-3 border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 py-8 text-red-600 dark:text-red-400 transition-all hover:border-red-300 dark:hover:border-red-700 hover:bg-red-100 dark:hover:bg-red-900"
             onClick={handleDelete}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
-              <Trash2 className="h-5 w-5 text-red-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-red-600 shadow-lg">
+              <Trash2 className="h-6 w-6 text-white" />
             </div>
             <div className="text-left">
-              <div className="font-semibold text-red-900">Delete Session</div>
-              <div className="text-xs text-red-600">Permanently remove this session</div>
+              <div className="font-bold text-red-900 dark:text-red-100">Delete Session</div>
+              <div className="text-xs text-red-600 dark:text-red-400">Permanently remove this session</div>
             </div>
           </Button>
         </div>
