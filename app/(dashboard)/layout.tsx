@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button';
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Sessions', href: '/sessions', icon: Smartphone },
-  { name: 'Messages', href: '/messages', icon: MessageSquare },
   { name: 'Campaigns', href: '/campaigns', icon: Send },
   { name: 'Templates', href: '/templates', icon: LayoutTemplate },
   { name: 'Chatbots', href: '/chatbots', icon: Bot },

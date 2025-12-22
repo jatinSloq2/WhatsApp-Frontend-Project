@@ -1,24 +1,34 @@
 // src/store/store.ts
 
-import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
-import storage from 'redux-persist/lib/storage';
-import authReducer from './slices/authSlice';
-import sessionReducer from './slices/sessionSlice';
-import chatReducer from './slices/chatSlice';
-import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+import { combineReducers, configureStore } from "@reduxjs/toolkit";
+import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
+import {
+  FLUSH,
+  PAUSE,
+  PERSIST,
+  persistReducer,
+  persistStore,
+  PURGE,
+  REGISTER,
+  REHYDRATE,
+} from "redux-persist";
+import storage from "redux-persist/lib/storage";
+import authReducer from "./slices/authSlice";
+import sessionReducer from "./slices/sessionSlice";
+import campaignReducer from "./slices/campaignSlice"
 
 const persistConfig = {
-  key: 'root',
+  key: "root",
   version: 1,
   storage,
-  whitelist: ['auth'], // Only persist auth state
+  whitelist: ["auth"], // Only persist auth state
 };
 
 const rootReducer = combineReducers({
   auth: authReducer,
   session: sessionReducer,
-   chat: chatReducer,
+  campaign: campaignReducer,
+  //  chat: chatReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
