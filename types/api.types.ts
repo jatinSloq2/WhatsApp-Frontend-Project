@@ -8,7 +8,7 @@ export interface ApiResponse<T = any> {
     field: string;
     message: string;
   }>;
-  timestamp: string;
+  timestamp?: string;
 }
 
 export interface PaginatedResponse<T = any> {

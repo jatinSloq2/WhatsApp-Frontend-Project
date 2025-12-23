@@ -1,30 +1,20 @@
-// src/lib/api/campaign.service.ts
+// src/lib/api/campaign.service.js
 
-import { MessageContent } from "@/store/slices/campaignSlice";
 import { sessionApi } from "./client";
 
 export const campaignService = {
-  sendSingleMessage: async (
-    sessionId: string,
-    receiver: string,
-    message: MessageContent
-  ) => {
+  sendSingleMessage: async (sessionId, receiver, message) => {
     return sessionApi.post(`/messages/send?id=${sessionId}`, {
       receiver,
       message,
     });
   },
 
-  sendBulkMessage: async (data: {
-    id: string;
-    numbers: string[];
-    message: MessageContent;
-    delay?: number;
-  }) => {
+  sendBulkMessage: async (data) => {
     return sessionApi.post("/messages/bulk", data);
   },
 
-  uploadMedia: async (file: File) => {
+  uploadMedia: async (file) => {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -34,4 +24,12 @@ export const campaignService = {
       },
     });
   },
+
+  getCampaigns: (params) =>
+    sessionApi.get("/campaigns", {
+      params,
+    }),
+
+  getCampaignById: (id) =>
+    sessionApi.get(`/campaigns/${id}`),
 };

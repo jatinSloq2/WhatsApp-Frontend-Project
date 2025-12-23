@@ -13,6 +13,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { sendSingleMessage, sendBulkMessage, uploadMedia, setUploadProgress } from '@/store/slices/campaignSlice';
 import { fetchSessions } from '@/store/slices/sessionSlice';
 import toast from 'react-hot-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function NewCampaignPage() {
   const router = useRouter();
@@ -191,20 +192,26 @@ export default function NewCampaignPage() {
           {/* Session Selection */}
           <div className="space-y-2">
             <Label htmlFor="session">Select Session *</Label>
-            <select
-              id="session"
+            <Select
               value={selectedSession}
-              onChange={(e) => setSelectedSession(e.target.value)}
-              className="w-full rounded-xl border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-gray-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+              onValueChange={setSelectedSession}
               required
             >
-              <option value="">Choose a connected session</option>
-              {connectedSessions.map((session) => (
-                <option key={session.sessionId} value={session.sessionId}>
-                  {session.sessionName} ({session.phoneNumber})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full rounded-xl border-2">
+                <SelectValue placeholder="Choose a connected session" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {connectedSessions.map((session) => (
+                  <SelectItem
+                    key={session.sessionId}
+                    value={session.sessionId}
+                  >
+                    {session.sessionName} ({session.phoneNumber})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {connectedSessions.length === 0 && (
               <p className="text-sm text-red-500">
                 No connected sessions available. Please connect a session first.
@@ -216,30 +223,28 @@ export default function NewCampaignPage() {
           <div className="space-y-2">
             <Label>Message Type *</Label>
             <div className="grid grid-cols-2 gap-4">
-              <button
+              <Button
                 type="button"
                 onClick={() => setMessageType('single')}
-                className={`flex items-center justify-center gap-2 rounded-xl border-2 p-4 transition-all ${
-                  messageType === 'single'
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
-                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
-                }`}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 p-4 transition-all ${messageType === 'single'
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                  : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
+                  }`}
               >
                 <Send className="h-5 w-5" />
                 <span className="font-medium">Single Message</span>
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setMessageType('bulk')}
-                className={`flex items-center justify-center gap-2 rounded-xl border-2 p-4 transition-all ${
-                  messageType === 'bulk'
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
-                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
-                }`}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 p-4 transition-all ${messageType === 'bulk'
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                  : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
+                  }`}
               >
                 <Users className="h-5 w-5" />
                 <span className="font-medium">Bulk Messages</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -292,11 +297,10 @@ export default function NewCampaignPage() {
                     setMediaFile(null);
                     setMediaUrl('');
                   }}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-all ${
-                    mediaType === type
-                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                      : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
-                  }`}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-xl border-2 p-3 transition-all ${mediaType === type
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400'
+                    }`}
                 >
                   {type === 'none' ? (
                     <X className="h-5 w-5" />
@@ -320,13 +324,13 @@ export default function NewCampaignPage() {
             <div className="space-y-2">
               <Label htmlFor="media">Upload {mediaType} *</Label>
               <div className="flex items-center gap-4">
-                <label
+                <Label
                   htmlFor="media"
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 cursor-pointer hover:border-emerald-500 transition-all"
                 >
                   {getMediaIcon()}
                   <span>Choose File</span>
-                </label>
+                </Label>
                 <input
                   id="media"
                   type="file"
@@ -335,10 +339,10 @@ export default function NewCampaignPage() {
                     mediaType === 'image'
                       ? 'image/*'
                       : mediaType === 'video'
-                      ? 'video/*'
-                      : mediaType === 'audio'
-                      ? 'audio/*'
-                      : '*'
+                        ? 'video/*'
+                        : mediaType === 'audio'
+                          ? 'audio/*'
+                          : '*'
                   }
                   className="hidden"
                 />

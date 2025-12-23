@@ -6,14 +6,26 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { deleteCampaign } from '@/store/slices/campaignSlice';
+import { deleteCampaign, fetchCampaigns } from '@/store/slices/campaignSlice';
 import { CheckCircle, Clock, MessageSquare, Plus, Send, Trash2, Users, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 export default function CampaignsPage() {
   const dispatch = useAppDispatch();
   const { campaigns, isLoading } = useAppSelector((state) => state.campaign);
+
+  useEffect(() => {
+    dispatch(fetchCampaigns());
+  }, [dispatch]);
+
+  // Log campaigns after fetch completes
+  useEffect(() => {
+    if (!isLoading && campaigns.length > 0) {
+      console.log("Campaigns loaded:", campaigns);
+    }
+  }, [isLoading, campaigns]);
 
   const handleDelete = async (campaignId: string) => {
     if (
@@ -30,13 +42,15 @@ export default function CampaignsPage() {
     }
   };
 
+  console.log(campaigns)
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, { class: string; icon: any }> = {
       completed: {
         class: 'bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
         icon: CheckCircle,
       },
-      sending: {
+      running: {
         class: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
         icon: Clock,
       },
@@ -86,6 +100,7 @@ export default function CampaignsPage() {
     );
   }
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -121,12 +136,15 @@ export default function CampaignsPage() {
                     {getMessageTypeIcon(campaign.message)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 dark:text-white truncate">
-                      {campaign.name}
+                    <h3 className="font-bold truncate">
+                      {campaign.type === "bulk"
+                        ? `Bulk Campaign (${campaign.total})`
+                        : `Single Message`}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {campaign.sessionName || campaign.sessionId}
+                    <p className="text-xs text-gray-500 truncate">
+                      Session: {campaign.sessionId}
                     </p>
+
                   </div>
                 </div>
               </div>
@@ -134,13 +152,13 @@ export default function CampaignsPage() {
               {/* Status and Type Badges */}
               <div className="mb-4 flex gap-2 flex-wrap">
                 {getStatusBadge(campaign.status)}
-                <Badge className={`capitalize font-semibold ${getMessageTypeColor(campaign.messageType)}`}>
-                  {campaign.messageType === 'bulk' ? (
+                <Badge className={`capitalize font-semibold ${getMessageTypeColor(campaign.type)}`}>
+                  {campaign.type === 'bulk' ? (
                     <Users className="h-3 w-3 mr-1" />
                   ) : (
                     <Send className="h-3 w-3 mr-1" />
                   )}
-                  {campaign.messageType}
+                  {campaign.type}
                 </Badge>
               </div>
 
@@ -149,11 +167,11 @@ export default function CampaignsPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Total Receivers:</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {campaign.totalReceivers}
+                    {campaign.total}
                   </span>
                 </div>
 
-                {campaign.messageType === 'bulk' && (
+                {campaign.type === 'bulk' && (
                   <>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Sent:</span>
@@ -171,14 +189,7 @@ export default function CampaignsPage() {
                       </div>
                     )}
 
-                    {campaign.delay && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Delay:</span>
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {campaign.delay}ms
-                        </span>
-                      </div>
-                    )}
+
                   </>
                 )}
 
@@ -189,30 +200,30 @@ export default function CampaignsPage() {
                   </span>
                 </div>
 
-                {campaign.completedAt && (
+                {campaign.updatedAt && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Completed:</span>
                     <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                      {formatDate(campaign.completedAt)}
+                      {formatDate(campaign.updatedAt)}
                     </span>
                   </div>
                 )}
               </div>
 
               {/* Progress Bar for Bulk Campaigns */}
-              {campaign.messageType === 'bulk' && campaign.status === 'sending' && (
+              {campaign.type === 'bulk' && campaign.status === 'running' && (
                 <div className="mb-4">
                   <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                     <span>Progress</span>
                     <span>
-                      {Math.round((campaign.sentCount / campaign.totalReceivers) * 100)}%
+                      {Math.round((campaign.sentCount / campaign.total) * 100)}%
                     </span>
                   </div>
                   <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-300"
                       style={{
-                        width: `${(campaign.sentCount / campaign.totalReceivers) * 100}%`,
+                        width: `${(campaign.sentCount / campaign.total) * 100}%`,
                       }}
                     />
                   </div>
@@ -227,31 +238,7 @@ export default function CampaignsPage() {
                     {campaign.message.text}
                   </p>
                 </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2 border-t-2 border-gray-200 dark:border-gray-800 pt-4">
-                <Link
-                  href={`/campaigns/${campaign._id}`}
-                  className="flex-1"
-                >
-                  <Button
-                    size="sm"
-                    className="w-full gap-2 border-2 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <Send className="h-4 w-4" />
-                    Details
-                  </Button>
-                </Link>
-
-                <Button
-                  size="sm"
-                  onClick={() => handleDelete(campaign._id)}
-                  className="bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-lg"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              )}              
             </Card>
           ))}
         </div>
